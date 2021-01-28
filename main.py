@@ -36,12 +36,6 @@ IM_HEIGHT = 720
 # Select camera type (if user enters --usbcam when calling this script,
 # a USB webcam will be used)
 camera_type = 'picamera'
-parser = argparse.ArgumentParser()
-parser.add_argument('--usbcam', help='Use a USB webcam instead of picamera',
-                    action='store_true')
-args = parser.parse_args()
-if args.usbcam:
-    camera_type = 'usb'
 
 # This is needed since the working directory is the object_detection folder.
 sys.path.append('..')
@@ -126,7 +120,7 @@ if camera_type == 'picamera':
     rawCapture = PiRGBArray(camera, size=(IM_WIDTH, IM_HEIGHT))
     rawCapture.truncate(0)
 
-    for frame1 in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+    for frame1 in camera.capture_continuous(rawCapture, format="rgb", use_video_port=True):
 
         t1 = cv2.getTickCount()
 
@@ -134,8 +128,8 @@ if camera_type == 'picamera':
         # i.e. a single-column array, where each item in the column has the pixel RGB value
         frame = np.copy(frame1.array)
         frame.setflags(write=1)
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frame_expanded = np.expand_dims(frame_rgb, axis=0)
+        # frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame_expanded = np.expand_dims(frame, axis=0)
 
         # Perform the actual detection by running the model with the image as input
         (boxes, scores, classes, num) = sess.run(

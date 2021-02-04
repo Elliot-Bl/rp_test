@@ -34,8 +34,8 @@ import tflite_runtime.interpreter as tflite
 # Set up camera constants
 IM_WIDTH = 1280
 IM_HEIGHT = 720
-# IM_WIDTH = 640    Use smaller resolution for
-# IM_HEIGHT = 480   slightly faster framerate
+#IM_WIDTH = 640 #   Use smaller resolution for
+#IM_HEIGHT = 480 #  slightly faster framerate
 
 # Select camera type (if user enters --usbcam when calling this script,
 # a USB webcam will be used)
@@ -114,7 +114,9 @@ font = cv2.FONT_HERSHEY_SIMPLEX
 # I know this is ugly, but I basically copy+pasted the code for the object
 # detection loop twice, and made one work for Picamera and the other work
 # for USB.
-
+frs = np.array([])
+num_frames = 0
+average_fr = 0
 mapper = {0:'anger', 1:'disgust', 2:'fear', 3:'happiness', 4: 'sadness', 5: 'surprise', 6: 'neutral'}
 ### Picamera ###
 if camera_type == 'picamera':
@@ -133,9 +135,13 @@ if camera_type == 'picamera':
         # i.e. a single-column array, where each item in the column has the pixel RGB value
         frame = np.copy(frame1.array)
         frame.setflags(write=1)
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).resize((48,48))
-        frame_expanded = np.expand_dims(frame_rgb, axis=0)
-
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # print('frame rgb = ', type(frame_rgb), np.shape(frame_rgb))
+        # frame_rgb = vis_util._resize_original_image([frame_rgb], [48,48])
+        frame_rgb = cv2.resize(frame_rgb, (48,48))
+        # print('frame rgb = ', type(frame_rgb), np.shape(frame_rgb))
+        frame_expanded = np.expand_dims(frame_rgb/255, axis=2).astype('float32')
+        # print('frame expanded = ', type(frame_expanded[0][0][0]), np.shape([frame_expanded]))
         # Load the TFLite model and allocate tensors.
         interpreter = tflite.Interpreter(model_path="emotions.tflite")
         interpreter.allocate_tensors()
@@ -158,9 +164,12 @@ if camera_type == 'picamera':
         # Use `tensor()` in order to get a pointer to the tensor.
         output_data = interpreter.get_tensor(output_details[0]['index'])
 
-        # need to show predition on the screen
-        print("Guess: ", mapper[np.where(output_data[0] == np.max(output_data[0]))[0][0]],
-              "(%.02f%%)" % np.max(output_data[0] * 100))
+        # need to show predition on the screen, if it's a 'confident' prediction, i'll show the %
+        if(np.max(output_data[0] * 100) > 50):
+            print("Guess: ", mapper[np.where(output_data[0] == np.max(output_data[0]))[0][0]],
+                  "(%.02f%%)" % np.max(output_data[0] * 100))
+        else:
+            print("Guess: ", mapper[np.where(output_data[0] == np.max(output_data[0]))[0][0]])
 
         # Draw the results of the detection (aka 'visulaize the results')
         # vis_util.visualize_boxes_and_labels_on_image_array(
@@ -176,13 +185,17 @@ if camera_type == 'picamera':
         # cv2.putText(frame, "FPS: {0:.2f}".format(frame_rate_calc), (30, 50), font, 1, (255, 255, 0), 2, cv2.LINE_AA)
 
         # All the results have been drawn on the frame, so it's time to display it.
-        cv2.imshow('Object detector', frame)
+        #cv2.imshow('Emotion detector', frame)
 
         t2 = cv2.getTickCount()
         time1 = (t2 - t1) / freq
         frame_rate_calc = 1 / time1
-
+        
+        #frs = np.append(frs, frame_rate_calc)
+        #average_fr = np.mean(frs)
+        #print("Average frame rate = ", average_fr)
         # Press 'q' to quit
+        
         if cv2.waitKey(1) == ord('q'):
             break
 
